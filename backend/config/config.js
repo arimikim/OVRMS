@@ -40,12 +40,22 @@ module.exports = {
   },
 
   // CORS Configuration
-  cors: {
-    origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
-    credentials: true,
-    optionsSuccessStatus: 200,
+cors: {
+  origin: function(origin, callback) {
+    const allowed = (process.env.CORS_ORIGIN || 'http://localhost:5173')
+      .split(',')
+      .map(o => o.trim());
+    
+    // Allow requests with no origin (mobile apps, Postman, curl)
+    if (!origin || allowed.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
   },
-
+  credentials: true,
+  optionsSuccessStatus: 200,
+},
   // Email Configuration (Optional)
   email: {
     host: process.env.SMTP_HOST,

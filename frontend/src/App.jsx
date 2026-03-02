@@ -22,6 +22,7 @@ import {
 // =====================================================
 // API SERVICE - All backend calls
 // =====================================================
+const BASE = import.meta.env.VITE_API_URL || "";
 const API = {
   _headers: () => ({
     "Content-Type": "application/json",
@@ -30,7 +31,10 @@ const API = {
     }),
   }),
   _request: async (url, options = {}) => {
-    const res = await fetch(url, { ...options, headers: API._headers() });
+    const res = await fetch(`${BASE}${url}`, {
+      ...options,
+      headers: API._headers(),
+    });
     const data = await res.json();
     if (!res.ok) {
       if (data.details)
@@ -168,6 +172,7 @@ function LoginScreen({ onLogin, onRegister }) {
   const [mode, setMode] = useState("login");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false); // ✅ FIXED
   const [loginForm, setLoginForm] = useState({ username: "", password: "" });
   const [regForm, setRegForm] = useState({
     username: "",
@@ -213,6 +218,41 @@ function LoginScreen({ onLogin, onRegister }) {
       setLoading(false);
     }
   };
+
+  // Forgot Password Modal
+  if (showForgotPassword) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-400 to-cyan-500 mb-4 shadow-lg shadow-emerald-500/30">
+              <Car className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-3xl font-bold text-white tracking-tight">
+              OVRMS
+            </h1>
+            <p className="text-slate-400 text-sm mt-1">
+              Konza Technopolis Vehicle Rental
+            </p>
+          </div>
+          <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-8 shadow-2xl">
+            <h2 className="text-lg font-bold text-white mb-2">
+              Reset Password
+            </h2>
+            <p className="text-slate-400 text-sm mb-6">
+              Please contact your system administrator to reset your password.
+            </p>
+            <button
+              onClick={() => setShowForgotPassword(false)}
+              className="w-full py-3 bg-slate-800/60 text-slate-300 text-sm font-semibold rounded-xl hover:bg-slate-700/60 transition-all"
+            >
+              Back to Login
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
@@ -272,7 +312,7 @@ function LoginScreen({ onLogin, onRegister }) {
                     required
                   />
                 </div>
-                <div className="text-right mb-2">
+                <div className="text-right">
                   <button
                     type="button"
                     onClick={() => setShowForgotPassword(true)}
@@ -302,7 +342,6 @@ function LoginScreen({ onLogin, onRegister }) {
                     Register here
                   </button>
                 </p>
-                <p className="text-center text-xs text-slate-600 mt-2"></p>
               </div>
             </>
           ) : (
