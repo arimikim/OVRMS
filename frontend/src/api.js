@@ -2,7 +2,7 @@
  * API Service - Handles all backend communication
  */
 
-const API_BASE_URL = "/api";
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 // Helper function to handle API responses
 const handleResponse = async (response) => {
