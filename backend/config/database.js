@@ -5,8 +5,12 @@
 const { Pool } = require('pg');
 const config = require('../config/config');
 
-const pool = new Pool(config.database);
-
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  }
+});
 // Event handlers
 pool.on('connect', () => {
   console.log('✅ Database connected successfully');

@@ -303,7 +303,7 @@ This starts:
 
 **Student:** Mercy Wanjiku Minjire  
 **Email:** [student email]  
-**Supervisor:** Fred Omondi  
+**Supervisor:** Fred Omondi   
 
 For bugs or issues:
 - Check documentation first

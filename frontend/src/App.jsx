@@ -272,6 +272,15 @@ function LoginScreen({ onLogin, onRegister }) {
                     required
                   />
                 </div>
+                <div className="text-right mb-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotPassword(true)}
+                    className="text-sm text-emerald-400 hover:text-emerald-300 transition-colors"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
                 <button
                   type="submit"
                   disabled={loading}

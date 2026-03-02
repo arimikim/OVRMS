@@ -10,6 +10,7 @@ const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { validate, schemas } = require('../middleware/validation');
 const { AppError } = require('../middleware/errorHandler');
 const { logAudit, calculateRentalCost, checkVehicleAvailability } = require('../utils/helpers');
+const { sendBookingConfirmation, sendBookingApproval, sendBookingRejection } = require('../utils/emailService');
 
 /**
  * @route   POST /api/bookings
@@ -68,6 +69,32 @@ router.post('/', authenticateToken, validate(schemas.createBooking), async (req,
       req.ip
     );
 
+    // Send confirmation email to user
+    try {
+      const bookingData = result.rows[0];
+      const userResult = await query('SELECT email, full_name FROM users WHERE user_id = $1', [req.user.userId]);
+      const vehicleResult = await query('SELECT vehicle_name, plate_number FROM vehicles WHERE vehicle_id = $1', [vehicleId]);
+      const pickupHubResult = await query('SELECT hub_name FROM mobility_hubs WHERE hub_id = $1', [pickupHubId]);
+      const dropoffHubResult = await query('SELECT hub_name FROM mobility_hubs WHERE hub_id = $1', [dropoffHubId]);
+
+      if (userResult.rows.length > 0) {
+        await sendBookingConfirmation(userResult.rows[0].email, {
+          bookingId: bookingData.booking_id,
+          userName: userResult.rows[0].full_name,
+          vehicleName: vehicleResult.rows[0]?.vehicle_name || 'N/A',
+          plateNumber: vehicleResult.rows[0]?.plate_number || 'N/A',
+          pickupHub: pickupHubResult.rows[0]?.hub_name || 'N/A',
+          dropoffHub: dropoffHubResult.rows[0]?.hub_name || 'N/A',
+          startDate: requestedStartDate,
+          endDate: requestedEndDate,
+          estimatedCost: estimatedCost,
+        });
+      }
+    } catch (emailError) {
+      console.error('Failed to send booking confirmation email:', emailError.message);
+      // Don't fail the booking if email fails
+    }
+
     res.status(201).json(result.rows[0]);
   } catch (error) {
     next(error);
@@ -110,7 +137,9 @@ router.get('/', authenticateToken, requireAdmin, async (req, res, next) => {
 
     let queryText = `
       SELECT b.*, v.vehicle_name, v.plate_number, u.full_name as user_name,
-             pickup.hub_name as pickup_hub_name, dropoff.hub_name as dropoff_hub_name
+             pickup.hub_name as pickup_hub_name, dropoff.hub_name as dropoff_hub_name,
+             CASE WHEN b.booking_status = 'active' AND b.requested_end_date < CURRENT_DATE 
+                  THEN true ELSE false END as is_overdue
       FROM bookings b
       JOIN vehicles v ON b.vehicle_id = v.vehicle_id
       JOIN users u ON b.user_id = u.user_id
@@ -195,6 +224,38 @@ router.post('/:id/approve', authenticateToken, requireAdmin, async (req, res, ne
       req.ip
     );
 
+    // Send approval email to user
+    try {
+      const bookingDetails = await query(
+        `SELECT b.*, v.vehicle_name, v.plate_number, u.email, u.full_name,
+                pickup.hub_name as pickup_hub_name, dropoff.hub_name as dropoff_hub_name
+         FROM bookings b
+         JOIN vehicles v ON b.vehicle_id = v.vehicle_id
+         JOIN users u ON b.user_id = u.user_id
+         JOIN mobility_hubs pickup ON b.pickup_hub_id = pickup.hub_id
+         JOIN mobility_hubs dropoff ON b.dropoff_hub_id = dropoff.hub_id
+         WHERE b.booking_id = $1`,
+        [req.params.id]
+      );
+
+      if (bookingDetails.rows.length > 0) {
+        const booking = bookingDetails.rows[0];
+        await sendBookingApproval(booking.email, {
+          bookingId: booking.booking_id,
+          userName: booking.full_name,
+          vehicleName: booking.vehicle_name,
+          plateNumber: booking.plate_number,
+          pickupHub: booking.pickup_hub_name,
+          dropoffHub: booking.dropoff_hub_name,
+          startDate: booking.requested_start_date,
+          endDate: booking.requested_end_date,
+          estimatedCost: booking.estimated_cost,
+        });
+      }
+    } catch (emailError) {
+      console.error('Failed to send approval email:', emailError.message);
+    }
+
     res.json({ message: 'Booking approved successfully' });
   } catch (error) {
     next(error);
@@ -223,6 +284,31 @@ router.post('/:id/reject', authenticateToken, requireAdmin, validate(schemas.rej
       `Booking rejected: ${reason}`,
       req.ip
     );
+
+    // Send rejection email to user
+    try {
+      const bookingDetails = await query(
+        `SELECT b.*, v.vehicle_name, u.email, u.full_name
+         FROM bookings b
+         JOIN vehicles v ON b.vehicle_id = v.vehicle_id
+         JOIN users u ON b.user_id = u.user_id
+         WHERE b.booking_id = $1`,
+        [req.params.id]
+      );
+
+      if (bookingDetails.rows.length > 0) {
+        const booking = bookingDetails.rows[0];
+        await sendBookingRejection(booking.email, {
+          bookingId: booking.booking_id,
+          userName: booking.full_name,
+          vehicleName: booking.vehicle_name,
+          startDate: booking.requested_start_date,
+          endDate: booking.requested_end_date,
+        }, reason);
+      }
+    } catch (emailError) {
+      console.error('Failed to send rejection email:', emailError.message);
+    }
 
     res.json({ message: 'Booking rejected successfully' });
   } catch (error) {
