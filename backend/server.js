@@ -71,6 +71,11 @@ app.use("/api/bookings", bookingRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/hubs", hubRoutes); // ← ADD THIS LINE
 
+
+// Root route - for Render health checks
+app.get("/", (req, res) => {
+  res.json({ message: "OVRMS API is running", status: "ok" });
+});
 // Health check endpoint
 app.get("/health", async (req, res) => {
   const { pool } = require("./config/database");
