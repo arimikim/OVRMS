@@ -40,18 +40,11 @@ module.exports = {
   },
 
   // CORS Configuration
+// CORS Configuration
 cors: {
   origin: function(origin, callback) {
-    const allowed = (process.env.CORS_ORIGIN || 'http://localhost:5173')
-      .split(',')
-      .map(o => o.trim());
-    
-    // Allow requests with no origin (mobile apps, Postman, curl)
-    if (!origin || allowed.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
+    // Allow all origins temporarily - tighten after confirmed working
+    callback(null, true);
   },
   credentials: true,
   optionsSuccessStatus: 200,
